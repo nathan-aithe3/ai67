@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My First Browser AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f0f2f5; }
+        #status { margin: 20px; padding: 15px; border-radius: 8px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+
+    <h1>Simple Neural Network</h1>
+    <p>This AI will learn the formula: <strong>y = 2x - 1</strong></p>
+    
+    <button id="train-btn" onclick="train()">Start Training</button>
+    
+    <div id="status">Status: Ready to train.</div>
+    <div id="result"></div>
+
+    <script>
+        // 1. Define the architecture (The "Brain")
+        // A 'sequential' model is a stack of layers.
+        const model = tf.sequential();
+        
+        // Add one "dense" layer with 1 unit (one neuron). 
+        // inputShape: [1] means it takes one number as input.
+        model.add(tf.layers.dense({units: 1, inputShape: [1]}));
+
+        // 2. Prepare the training data (The "Books")
+        // x = input, y = the answer it should find
+        const xs = tf.tensor2d([-1, 0, 1, 2, 3, 4], [6, 1]);
+        const ys = tf.tensor2d([-3, -1, 1, 3, 5, 7], [6, 1]);
+
+        async function train() {
+            const btn = document.getElementById('train-btn');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            
+            // 3. Compile the model
+            // 'meanSquaredError' tells the AI how far off its guess was.
+            // 'sgd' (Stochastic Gradient Descent) is the math that fixes the error.
+            model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
+
+            status.innerText = "Training... (Teaching the AI the pattern)";
+
+            // 4. The Training Loop (The "Studying")
+            // We run through the data 500 times.
+            await model.fit(xs, ys, {epochs: 500});
+
+            status.innerText = "Training Complete!";
+            
+            // 5. Use the AI (The "Exam")
+            // We ask it: "If x is 10, what is y?" (Answer should be 19)
+            const prediction = model.predict(tf.tensor2d([10], [1, 1]));
+            
+            document.getElementById('result').innerHTML = `
+                <h3>Test Result:</h3>
+                <p>Input: 10</p>
+                <p>AI Prediction: <strong>${prediction.dataSync()[0].toFixed(2)}</strong></p>
+                <p>(The real math answer is 19. How close did it get?)</p>
+            `;
+        }
+    </script>
+</body>
+</html>
