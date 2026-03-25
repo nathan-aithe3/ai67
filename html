@@ -1,68 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My First Browser AI</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Instant AI Chat</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f0f2f5; }
-        #status { margin: 20px; padding: 15px; border-radius: 8px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; }
-        button:disabled { background: #ccc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        #chat-container { width: 400px; height: 600px; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; display: flex; flex-direction: column; overflow: hidden; }
+        #messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { padding: 10px 15px; border-radius: 18px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+        .user { align-self: flex-end; background-color: #007bff; color: white; border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background-color: #e9ecef; color: #333; border-bottom-left-radius: 2px; }
+        #input-area { padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
+        input { flex: 1; border: 1px solid #ddd; padding: 10px; border-radius: 20px; outline: none; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .typing { font-style: italic; color: #888; font-size: 12px; }
     </style>
 </head>
 <body>
 
-    <h1>Simple Neural Network</h1>
-    <p>This AI will learn the formula: <strong>y = 2x - 1</strong></p>
-    
-    <button id="train-btn" onclick="train()">Start Training</button>
-    
-    <div id="status">Status: Ready to train.</div>
-    <div id="result"></div>
+<div id="chat-container">
+    <div id="messages">
+        <div class="message ai">Hello! I am a live AI running in this HTML file. How can I help you today?</div>
+    </div>
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
 
-    <script>
-        // 1. Define the architecture (The "Brain")
-        // A 'sequential' model is a stack of layers.
-        const model = tf.sequential();
+<script>
+    const chatWindow = document.getElementById('messages');
+    const inputField = document.getElementById('user-input');
+
+    async function sendMessage() {
+        const text = inputField.value.trim();
+        if (!text) return;
+
+        // 1. Add User Message to UI
+        addMessage(text, 'user');
+        inputField.value = '';
+
+        // 2. Add "Typing..." indicator
+        const typingId = addMessage('AI is thinking...', 'ai typing');
         
-        // Add one "dense" layer with 1 unit (one neuron). 
-        // inputShape: [1] means it takes one number as input.
-        model.add(tf.layers.dense({units: 1, inputShape: [1]}));
+        try {
+            // 3. Call the AI Model (Using a free Public Inference API)
+            const response = await fetch("https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inputs: text })
+            });
 
-        // 2. Prepare the training data (The "Books")
-        // x = input, y = the answer it should find
-        const xs = tf.tensor2d([-1, 0, 1, 2, 3, 4], [6, 1]);
-        const ys = tf.tensor2d([-3, -1, 1, 3, 5, 7], [6, 1]);
-
-        async function train() {
-            const btn = document.getElementById('train-btn');
-            const status = document.getElementById('status');
-            btn.disabled = true;
+            const result = await response.json();
             
-            // 3. Compile the model
-            // 'meanSquaredError' tells the AI how far off its guess was.
-            // 'sgd' (Stochastic Gradient Descent) is the math that fixes the error.
-            model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
-
-            status.innerText = "Training... (Teaching the AI the pattern)";
-
-            // 4. The Training Loop (The "Studying")
-            // We run through the data 500 times.
-            await model.fit(xs, ys, {epochs: 500});
-
-            status.innerText = "Training Complete!";
+            // 4. Remove typing indicator and show AI response
+            document.getElementById(typingId).remove();
             
-            // 5. Use the AI (The "Exam")
-            // We ask it: "If x is 10, what is y?" (Answer should be 19)
-            const prediction = model.predict(tf.tensor2d([10], [1, 1]));
+            // Clean up the text (the model sometimes repeats the prompt)
+            let aiText = result[0]?.generated_text || "Sorry, I'm having trouble connecting to my brain right now.";
+            if (aiText.includes(text)) aiText = aiText.replace(text, "").trim();
             
-            document.getElementById('result').innerHTML = `
-                <h3>Test Result:</h3>
-                <p>Input: 10</p>
-                <p>AI Prediction: <strong>${prediction.dataSync()[0].toFixed(2)}</strong></p>
-                <p>(The real math answer is 19. How close did it get?)</p>
-            `;
+            addMessage(aiText, 'ai');
+        } catch (error) {
+            document.getElementById(typingId).innerText = "Error: Could not reach the AI.";
         }
-    </script>
+    }
+
+    function addMessage(text, type) {
+        const msgDiv = document.createElement('div');
+        const id = 'msg-' + Math.random().toString(36).substr(2, 9);
+        msgDiv.id = id;
+        msgDiv.className = `message ${type}`;
+        msgDiv.innerText = text;
+        chatWindow.appendChild(msgDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return id;
+    }
+</script>
+
 </body>
 </html>
